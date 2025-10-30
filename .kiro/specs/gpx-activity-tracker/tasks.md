@@ -7,7 +7,7 @@
   - Install and configure required dependencies (better-sqlite3, gpx-parser-builder, leaflet)
   - _Requirements: 5.5_
 
-- [ ] 2. Implement database layer and data models
+- [x] 2. Implement database layer and data models
 - [x] 2.1 Create database schema and initialization
   - Write SQL schema for activities and gps_points tables
   - Create database initialization script with indexes
@@ -90,13 +90,7 @@
   - _Requirements: 1.1, 1.2, 1.4_
 
 - [x] 6. Implement dashboard with statistics
-
-
-
-
 - [x] 6.1 Create statistics widgets
-
-
   - Build StatsWidget components for key metrics
   - Display total distance, activities count, and records
   - Implement monthly comparison statistics
@@ -104,43 +98,41 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
 - [x] 6.2 Build dashboard page layout
-
-
   - Arrange statistics widgets in responsive grid
   - Create dashboard page with real-time data
   - Implement loading states for statistics
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 7. Implement map visualization and generation
-- [ ] 7.1 Create map viewing components
+- [-] 7. Implement map visualization and generation
+- [x] 7.1 Create map viewing components
   - Integrate Leaflet.js for interactive maps
   - Build MapViewer component for activity routes
   - Implement GPS track rendering on maps
   - Add map controls and zoom functionality
   - _Requirements: 4.1, 4.2_
 
-- [ ] 7.2 Implement map generation for sharing
+- [x] 7.2 Implement map generation for sharing
   - Create MapGenerator component for social sharing
   - Add map customization options (colors, line thickness)
   - Implement map export as image functionality
   - Include activity metadata overlay on generated maps
   - _Requirements: 4.3, 4.4, 4.5_
 
-- [ ] 7.3 Create map API endpoints
+- [x] 7.3 Create map API endpoints
   - Implement GET /api/map/[id] for map data
   - Create POST /api/map/[id]/export for image generation
   - Handle map rendering server-side if needed
   - _Requirements: 4.1, 4.4_
 
-- [ ] 8. Implement activity detail pages
-- [ ] 8.1 Create individual activity view
+- [x] 8. Implement activity detail pages
+- [x] 8.1 Create individual activity view
   - Build detailed activity page with full metrics
   - Display activity map with complete route
   - Show GPS data, elevation, and speed information
   - Add navigation back to activities list
   - _Requirements: 2.3, 4.1, 4.2_
 
-- [ ] 8.2 Add activity management features
+- [x] 8.2 Add activity management features
   - Implement activity editing capabilities
   - Add activity deletion from detail view
   - Create activity sharing options

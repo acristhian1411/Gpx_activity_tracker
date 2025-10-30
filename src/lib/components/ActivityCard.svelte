@@ -78,56 +78,71 @@
 	}
 </script>
 
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
 	<!-- Header -->
-	<div class="flex justify-between items-start mb-4">
-		<div class="flex items-center space-x-3">
-			<span class="text-2xl">{getActivityIcon(activity.type)}</span>
-			<div>
-				<h3 class="text-lg font-semibold text-gray-900">{activity.name}</h3>
-				<p class="text-sm text-gray-500">{formatDate(activity.startTime)}</p>
+	<a href="/activities/{activity.id}" class="block p-6 pb-4">
+		<div class="flex justify-between items-start mb-4">
+			<div class="flex items-center space-x-3">
+				<span class="text-2xl">{getActivityIcon(activity.type)}</span>
+				<div>
+					<h3 class="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors">{activity.name}</h3>
+					<p class="text-sm text-gray-500">{formatDate(activity.startTime)}</p>
+				</div>
+			</div>
+			
+			<div class="flex items-center space-x-2">
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getActivityTypeColor(activity.type)}">
+					{activity.type}
+				</span>
 			</div>
 		</div>
 		
-		<div class="flex items-center space-x-2">
-			<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getActivityTypeColor(activity.type)}">
-				{activity.type}
-			</span>
+		<!-- Stats Grid -->
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div class="text-center">
+				<div class="text-2xl font-bold text-gray-900">{formatDistance(activity.distance)}</div>
+				<div class="text-sm text-gray-500">Distance</div>
+			</div>
 			
+			<div class="text-center">
+				<div class="text-2xl font-bold text-gray-900">{formatDuration(activity.duration)}</div>
+				<div class="text-sm text-gray-500">Duration</div>
+			</div>
+			
+			<div class="text-center">
+				<div class="text-2xl font-bold text-gray-900">{formatSpeed(activity.averageSpeed)}</div>
+				<div class="text-sm text-gray-500">Avg Speed</div>
+			</div>
+			
+			<div class="text-center">
+				<div class="text-2xl font-bold text-gray-900">{activity.elevationGain.toFixed(0)}m</div>
+				<div class="text-sm text-gray-500">Elevation</div>
+			</div>
+		</div>
+	</a>
+	
+	<!-- Action buttons outside the link -->
+	<div class="px-6 pb-4">
+		<div class="flex space-x-2">
+			<a
+				href="/map/{activity.id}"
+				class="flex-1 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-md hover:bg-green-100 transition-colors text-center flex items-center justify-center"
+				title="Generate shareable map"
+			>
+				<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+				</svg>
+				Generate Map
+			</a>
 			{#if onDelete}
 				<button
 					onclick={() => showDeleteConfirm = true}
-					class="p-1 text-gray-400 hover:text-red-500 transition-colors"
+					class="flex-1 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
 					title="Delete activity"
 				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-					</svg>
+					Delete
 				</button>
 			{/if}
-		</div>
-	</div>
-	
-	<!-- Stats Grid -->
-	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-		<div class="text-center">
-			<div class="text-2xl font-bold text-gray-900">{formatDistance(activity.distance)}</div>
-			<div class="text-sm text-gray-500">Distance</div>
-		</div>
-		
-		<div class="text-center">
-			<div class="text-2xl font-bold text-gray-900">{formatDuration(activity.duration)}</div>
-			<div class="text-sm text-gray-500">Duration</div>
-		</div>
-		
-		<div class="text-center">
-			<div class="text-2xl font-bold text-gray-900">{formatSpeed(activity.averageSpeed)}</div>
-			<div class="text-sm text-gray-500">Avg Speed</div>
-		</div>
-		
-		<div class="text-center">
-			<div class="text-2xl font-bold text-gray-900">{activity.elevationGain.toFixed(0)}m</div>
-			<div class="text-sm text-gray-500">Elevation</div>
 		</div>
 	</div>
 </div>

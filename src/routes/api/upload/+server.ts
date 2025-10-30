@@ -19,6 +19,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Parse form data
     const formData = await request.formData();
     const file = formData.get('gpx') as File;
+    const activityType = formData.get('activityType') as string || 'unknown';
 
     if (!file) {
       return json<UploadResponse>({
@@ -47,28 +48,25 @@ export const POST: RequestHandler = async ({ request }) => {
     // Read file content
     const content = await file.text();
     
-    // Parse GPX content
-    const parsedData = await GPXParserService.parseGPXContent(content, file.name);
+    // Parse GPX content with user-selected activity type
+    const parsedData = await GPXParserService.parseGPXContent(content, file.name, activityType as any);
 
     // Save to database
     const activityRepo = new ActivityRepository();
     const gpsPointRepo = new GPSPointRepository();
 
-    // Convert frontend types to database types (Date to string)
+    // Activity data is already in the correct format (strings) from GPXParserService
     const activityForDb = {
-      ...parsedData.activity,
-      startTime: parsedData.activity.startTime.toISOString(),
-      endTime: parsedData.activity.endTime.toISOString()
+      ...parsedData.activity
     };
 
     // Create activity
     const createdActivity = await activityRepo.create(activityForDb);
     
-    // Create GPS points with proper types
+    // Create GPS points with proper types (timestamps are already ISO strings)
     const gpsPointsWithActivityId = parsedData.gpsPoints.map(point => ({
       ...point,
-      activityId: createdActivity.id,
-      timestamp: point.timestamp.toISOString()
+      activityId: createdActivity.id
     }));
     
     console.log(`Processing ${gpsPointsWithActivityId.length} GPS points for activity ${createdActivity.id}`);

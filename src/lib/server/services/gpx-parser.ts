@@ -5,8 +5,8 @@
 
 // @ts-ignore - gpxparser doesn't have TypeScript definitions
 import GPXParser from 'gpxparser';
-import type { Activity, GPSPoint, ActivityType } from '$lib/server/db/types.js';
-import { GPXActivityError, ERROR_CODES } from '$lib/types/errors.js';
+import type { Activity, GPSPoint, ActivityType } from '../db/types.js';
+import { GPXActivityError, ERROR_CODES } from '../../types/errors.js';
 
 export interface ParsedGPXData {
   activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
@@ -76,7 +76,7 @@ export class GPXParserService {
   /**
    * Parses GPX file content and extracts activity data
    */
-  static async parseGPXContent(content: string, filename?: string): Promise<ParsedGPXData> {
+  static async parseGPXContent(content: string, filename?: string, userActivityType?: ActivityType): Promise<ParsedGPXData> {
     try {
       // Validate content first
       const validation = this.validateGPXContent(content);
@@ -129,12 +129,12 @@ export class GPXParserService {
         return timeA - timeB;
       });
 
-      // Convert to GPS points
-      let gpsPoints: Omit<GPSPoint, 'id' | 'activityId'>[] = allPoints.map((point: any, index: number) => ({
+      // Convert to GPS points (using ISO string for database compatibility)
+      let gpsPoints: Omit<any, 'id' | 'activityId'>[] = allPoints.map((point: any, index: number) => ({
         latitude: point.lat,
         longitude: point.lon,
-        elevation: point.ele || undefined,
-        timestamp: new Date(point.time),
+        elevation: point.ele || null,
+        timestamp: new Date(point.time).toISOString(),
         sequenceOrder: index
       }));
 
@@ -144,11 +144,13 @@ export class GPXParserService {
       // Calculate metrics
       const metrics = this.calculateMetrics(gpsPoints);
 
-      // Determine activity type from GPX metadata or filename
-      const activityType = this.determineActivityType(gpx, filename);
+      // Use user-provided activity type or determine from GPX metadata/filename
+      const activityType = userActivityType && userActivityType !== 'unknown' 
+        ? userActivityType 
+        : this.determineActivityType(gpx, filename);
 
-      // Generate activity name
-      const activityName = this.generateActivityName(gpx, filename, activityType, metrics.startTime);
+      // Generate activity name using the new format
+      const activityName = this.generateActivityName(gpx, filename, activityType, new Date(metrics.startTime));
 
       const activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'> = {
         name: activityName,
@@ -227,8 +229,8 @@ export class GPXParserService {
       );
     }
 
-    const startTime = gpsPoints[0].timestamp;
-    const endTime = gpsPoints[gpsPoints.length - 1].timestamp;
+    const startTime = new Date(gpsPoints[0].timestamp);
+    const endTime = new Date(gpsPoints[gpsPoints.length - 1].timestamp);
     const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000); // seconds
 
     let totalDistance = 0;
@@ -248,7 +250,7 @@ export class GPXParserService {
       totalDistance += segmentDistance;
 
       // Calculate elevation gain
-      if (prev.elevation !== undefined && curr.elevation !== undefined) {
+      if (prev.elevation !== null && curr.elevation !== null && prev.elevation !== undefined && curr.elevation !== undefined) {
         const elevationDiff = curr.elevation - prev.elevation;
         if (elevationDiff > 0) {
           elevationGain += elevationDiff;
@@ -256,7 +258,7 @@ export class GPXParserService {
       }
 
       // Calculate speed for this segment
-      const timeDiff = (curr.timestamp.getTime() - prev.timestamp.getTime()) / 1000; // seconds
+      const timeDiff = (new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 1000; // seconds
       if (timeDiff > 0) {
         const speed = segmentDistance / timeDiff; // m/s
         speeds.push(speed);
@@ -270,8 +272,8 @@ export class GPXParserService {
       : totalDistance / duration;
 
     return {
-      startTime,
-      endTime,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
       duration,
       distance: totalDistance,
       elevationGain,
@@ -338,7 +340,7 @@ export class GPXParserService {
   }
 
   /**
-   * Generates a meaningful activity name
+   * Generates a meaningful activity name with format: {Type} {Day} {Date}
    */
   private static generateActivityName(
     gpx: any,
@@ -346,32 +348,36 @@ export class GPXParserService {
     activityType?: ActivityType,
     startTime?: Date
   ): string {
-    // Use track name if available
-    if (gpx.tracks?.[0]?.name && gpx.tracks[0].name.trim()) {
-      return gpx.tracks[0].name.trim();
-    }
-
-    // Use filename without extension
-    if (filename) {
-      const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-      if (nameWithoutExt && nameWithoutExt !== 'activity') {
-        return nameWithoutExt;
-      }
-    }
-
-    // Generate name based on activity type and date
+    // Generate name based on activity type and date with new format
     const typeLabel = activityType && activityType !== 'unknown'
       ? activityType.charAt(0).toUpperCase() + activityType.slice(1)
       : 'Activity';
 
-    const dateStr = startTime
-      ? startTime.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })
-      : 'Unknown Date';
+    if (!startTime) {
+      return `${typeLabel} - Unknown Date`;
+    }
 
-    return `${typeLabel} - ${dateStr}`;
+    const dayName = startTime.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = startTime.getDate();
+    const ordinalSuffix = this.getOrdinalSuffix(day);
+    const month = startTime.toLocaleDateString('en-US', { month: 'short' });
+
+    return `${typeLabel} ${dayName} ${day}${ordinalSuffix} ${month}`;
+  }
+
+  /**
+   * Get ordinal suffix for day (1st, 2nd, 3rd, 4th, etc.)
+   */
+  private static getOrdinalSuffix(day: number): string {
+    if (day >= 11 && day <= 13) {
+      return 'th';
+    }
+    
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
   }
 }

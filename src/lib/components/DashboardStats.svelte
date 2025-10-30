@@ -1,16 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import StatsWidget from './StatsWidget.svelte';
+	import CategoryStats from './CategoryStats.svelte';
 	import { statsLoading, statsError, formattedStats, fetchStats } from '$lib/stores/stats';
+	import { fetchCategoryStats } from '$lib/stores/categoryStats';
 
 	onMount(() => {
 		fetchStats();
+		fetchCategoryStats();
 	});
 
 	// Auto-refresh stats when component becomes visible (e.g., after adding new activity)
 	function handleVisibilityChange() {
 		if (!document.hidden) {
 			fetchStats();
+			fetchCategoryStats();
 		}
 	}
 
@@ -120,6 +124,11 @@
 					/>
 				</div>
 			</div>
+		{/if}
+
+		<!-- Category Statistics -->
+		{#if $formattedStats?.hasActivities}
+			<CategoryStats />
 		{/if}
 
 		<!-- Empty State for New Users -->

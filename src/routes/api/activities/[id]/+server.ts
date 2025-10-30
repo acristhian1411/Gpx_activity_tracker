@@ -134,13 +134,140 @@ export const DELETE: RequestHandler = async ({ params }) => {
   }
 };
 
+/**
+ * PATCH /api/activities/[id] - Update specific activity
+ */
+export const PATCH: RequestHandler = async ({ params, request }) => {
+  try {
+    const activityId = parseInt(params.id);
+    
+    if (isNaN(activityId)) {
+      return json({
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Invalid activity ID',
+          details: { id: params.id }
+        }
+      }, { status: 400 });
+    }
+
+    // Parse request body
+    const updates = await request.json();
+    
+    // Validate updates
+    const allowedFields = ['name', 'type'];
+    const validUpdates: any = {};
+    
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        validUpdates[field] = updates[field];
+      }
+    }
+
+    // Validate name if provided
+    if (validUpdates.name !== undefined) {
+      if (typeof validUpdates.name !== 'string' || validUpdates.name.trim().length === 0) {
+        return json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Activity name must be a non-empty string',
+            details: { name: validUpdates.name }
+          }
+        }, { status: 400 });
+      }
+      validUpdates.name = validUpdates.name.trim();
+    }
+
+    // Validate type if provided
+    if (validUpdates.type !== undefined) {
+      const validTypes = ['running', 'cycling', 'walking', 'hiking', 'unknown'];
+      if (!validTypes.includes(validUpdates.type)) {
+        return json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Invalid activity type',
+            details: { type: validUpdates.type, validTypes }
+          }
+        }, { status: 400 });
+      }
+    }
+
+    // Check if activity exists
+    const existingActivity = await activityRepo.findById(activityId);
+    if (!existingActivity) {
+      return json({
+        success: false,
+        error: {
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Activity not found',
+          details: { id: activityId }
+        }
+      }, { status: 404 });
+    }
+
+    // Update the activity
+    const updatedActivity = await activityRepo.update(activityId, validUpdates);
+
+    if (!updatedActivity) {
+      return json({
+        success: false,
+        error: {
+          code: ERROR_CODES.DATABASE_ERROR,
+          message: 'Failed to update activity',
+          details: { id: activityId }
+        }
+      }, { status: 500 });
+    }
+
+    // Convert database dates to frontend Date objects
+    const activityWithDates = {
+      ...updatedActivity,
+      startTime: new Date(updatedActivity.startTime),
+      endTime: new Date(updatedActivity.endTime),
+      createdAt: new Date(updatedActivity.createdAt),
+      updatedAt: new Date(updatedActivity.updatedAt)
+    };
+
+    return json<ActivityResponse>({
+      success: true,
+      data: activityWithDates
+    });
+
+  } catch (error) {
+    console.error('Error updating activity:', error);
+    
+    if (error instanceof GPXActivityError) {
+      return json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          details: error.details
+        }
+      }, { status: 400 });
+    }
+
+    return json({
+      success: false,
+      error: {
+        code: ERROR_CODES.DATABASE_ERROR,
+        message: 'Failed to update activity',
+        details: { originalError: error instanceof Error ? error.message : 'Unknown error' }
+      }
+    }, { status: 500 });
+  }
+};
+
 // Handle OPTIONS for CORS if needed
 export const OPTIONS: RequestHandler = async () => {
   return new Response(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
   });

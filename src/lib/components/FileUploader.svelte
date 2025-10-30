@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { UploadResponse } from '$lib/types';
+	import type { UploadResponse, ActivityType } from '$lib/types';
 	
 	let dragActive = $state(false);
 	let uploading = $state(false);
 	let uploadProgress = $state(0);
 	let selectedFile = $state<File | null>(null);
+	let selectedActivityType = $state<ActivityType>('unknown');
 	let uploadResult = $state<{ success: boolean; message: string; activityId?: number } | null>(null);
 	
 	function handleDragOver(event: DragEvent) {
@@ -69,6 +70,7 @@
 			
 			const formData = new FormData();
 			formData.append('gpx', selectedFile);
+			formData.append('activityType', selectedActivityType);
 			
 			// Simulate progress for better UX
 			const progressInterval = setInterval(() => {
@@ -94,6 +96,7 @@
 					activityId: result.data.activity.id
 				};
 				selectedFile = null;
+				selectedActivityType = 'unknown';
 			} else {
 				uploadResult = {
 					success: false,
@@ -114,6 +117,7 @@
 	
 	function clearSelection() {
 		selectedFile = null;
+		selectedActivityType = 'unknown';
 		uploadResult = null;
 	}
 	
@@ -130,6 +134,8 @@
 		class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors
 			{dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
 			{selectedFile ? 'border-green-400 bg-green-50' : ''}"
+		role="button"
+		tabindex="0"
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
@@ -142,6 +148,28 @@
 					<h3 class="text-lg font-medium text-gray-900">{selectedFile.name}</h3>
 					<p class="text-sm text-gray-500">
 						{(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+					</p>
+				</div>
+				
+				<!-- Activity Type Selection -->
+				<div class="space-y-2">
+					<label for="activity-type" class="block text-sm font-medium text-gray-700">
+						Activity Type
+					</label>
+					<select
+						id="activity-type"
+						bind:value={selectedActivityType}
+						disabled={uploading}
+						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<option value="unknown">Unknown</option>
+						<option value="running">Running</option>
+						<option value="cycling">Cycling</option>
+						<option value="walking">Walking</option>
+						<option value="hiking">Hiking</option>
+					</select>
+					<p class="text-xs text-gray-500">
+						Select the type of activity for better organization and naming
 					</p>
 				</div>
 				

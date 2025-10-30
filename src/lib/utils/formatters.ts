@@ -55,7 +55,7 @@ export function calculatePercentageChange(current: number, previous: number): {
 
 	const percentage = ((current - previous) / previous) * 100;
 	const trend = percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'neutral';
-	
+
 	return {
 		percentage: Math.abs(percentage),
 		trend,
@@ -73,12 +73,46 @@ export function formatActivityType(type: string): string {
 /**
  * Format date for display
  */
-export function formatDate(date: Date): string {
-	return date.toLocaleDateString('en-US', {
+export function formatDate(date: Date | string): string {
+	const dateObj = date instanceof Date ? date : new Date(date);
+	return dateObj.toLocaleDateString('es-PY', {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric'
 	});
+}
+
+/**
+ * Generate activity name with format: {Type} {Day} {Date}
+ * Example: "Cycling Sunday 26th Oct"
+ */
+export function generateActivityName(activityType: string, date: Date): string {
+	const typeLabel = activityType.charAt(0).toUpperCase() + activityType.slice(1);
+	
+	const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+	
+	const day = date.getDate();
+	const ordinalSuffix = getOrdinalSuffix(day);
+	
+	const month = date.toLocaleDateString('en-US', { month: 'short' });
+	
+	return `${typeLabel} ${dayName} ${day}${ordinalSuffix} ${month}`;
+}
+
+/**
+ * Get ordinal suffix for day (1st, 2nd, 3rd, 4th, etc.)
+ */
+function getOrdinalSuffix(day: number): string {
+	if (day >= 11 && day <= 13) {
+		return 'th';
+	}
+	
+	switch (day % 10) {
+		case 1: return 'st';
+		case 2: return 'nd';
+		case 3: return 'rd';
+		default: return 'th';
+	}
 }
 
 /**
@@ -92,3 +126,50 @@ export function formatMonthName(monthString: string): string {
 		month: 'long'
 	});
 }
+
+/**
+ * Format time for display
+ */
+export function formatTime(date: Date | string): string {
+	const dateObj = date instanceof Date ? date : new Date(date);
+	return dateObj.toLocaleTimeString('en-US', {
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}
+
+/**
+ * Format elevation from meters
+ */
+export function formatElevation(meters: number): string {
+	return `${Math.round(meters)} m`;
+}
+
+/**
+ * Format pace from speed (m/s to min/km)
+ */
+export function formatPace(metersPerSecond: number): string {
+	if (metersPerSecond === 0) return '0:00 /km';
+	
+	const kmh = metersPerSecond * 3.6;
+	const minPerKm = 60 / kmh;
+	const minutes = Math.floor(minPerKm);
+	const seconds = Math.round((minPerKm - minutes) * 60);
+	
+	return `${minutes}:${seconds.toString().padStart(2, '0')} /km`;
+}
+
+// Export all formatters as a single object for easier importing
+export const formatters = {
+	formatDistance,
+	formatDuration,
+	formatSpeed,
+	formatPace,
+	formatDate,
+	formatTime,
+	formatElevation,
+	formatActivityType,
+	formatMonthName,
+	calculatePercentageChange,
+	generateActivityName
+};

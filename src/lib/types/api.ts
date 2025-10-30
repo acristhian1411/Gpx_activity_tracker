@@ -38,6 +38,11 @@ export interface UploadResponse extends ApiResponse<{
 export interface MapDataResponse extends ApiResponse<{
   activity: Activity;
   gpsPoints: GPSPoint[];
+  metadata: {
+    totalPoints: number;
+    simplified: boolean;
+    simplificationFactor: number;
+  };
 }> {}
 
 export interface MapExportResponse extends ApiResponse<{
