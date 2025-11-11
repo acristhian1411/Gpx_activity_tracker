@@ -22,6 +22,7 @@
 
   // Map container and instance
   let mapContainer: HTMLDivElement;
+  let wrapperContainer: HTMLDivElement;
   let map: any = null;
   let polyline: any = null;
   let isGenerating = false;
@@ -180,50 +181,47 @@
     quality?: number;
     scale?: number;
   } = {}): Promise<string | null> {
-    if (!map || !mapContainer) return null;
+    if (!map || !wrapperContainer) return null;
 
     try {
       isGenerating = true;
 
       const { format = 'png', quality = 0.9, scale = 2 } = options;
 
-      // Wait for tiles to load completely
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait a bit for the UI to update
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Ensure all map tiles are loaded
+      // Wait for tiles to load completely
       await waitForTilesToLoad();
 
-      // Use html2canvas to capture the map
+      // Give more time for tiles to fully render
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Use html2canvas to capture the wrapper container
       // @ts-ignore - html2canvas doesn't have TypeScript definitions
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default || html2canvasModule;
       
-      const canvas = await html2canvas(mapContainer, {
+      const canvas = await html2canvas(wrapperContainer, {
         backgroundColor,
-        width,
-        height,
         useCORS: true,
         allowTaint: true,
         scale,
         logging: false,
         imageTimeout: 15000,
-        removeContainer: false,
-        ignoreElements: (element: any) => {
-          // Skip elements that might cause parsing issues
-          return element.classList?.contains('leaflet-control-container') || false;
-        },
         onclone: (clonedDoc: any) => {
-          // Remove any problematic CSS that might use oklch
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            * {
-              color-scheme: initial !important;
-            }
-            .leaflet-container {
-              background: ${backgroundColor} !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
+          // Find and remove the generation overlay from the clone
+          const generationOverlay = clonedDoc.querySelector('.generation-overlay');
+          if (generationOverlay) {
+            generationOverlay.remove();
+          }
+          
+          // Fix backdrop-filter which doesn't work in html2canvas
+          const metadataOverlays = clonedDoc.querySelectorAll('.metadata-overlay');
+          metadataOverlays.forEach((overlay: any) => {
+            overlay.style.backdropFilter = 'none';
+            overlay.style.background = 'rgba(255, 255, 255, 0.95)';
+          });
         }
       });
 
@@ -252,7 +250,7 @@
       let tilesLoaded = 0;
 
       const checkTiles = () => {
-        if (tilesLoading === tilesLoaded) {
+        if (tilesLoading > 0 && tilesLoading === tilesLoaded) {
           resolve();
         }
       };
@@ -276,7 +274,7 @@
       });
 
       // Fallback timeout
-      setTimeout(resolve, 3000);
+      setTimeout(resolve, 2000);
     });
   }
 
@@ -329,12 +327,17 @@
   />
 </svelte:head>
 
-<div class="map-generator-container" style="background-color: {backgroundColor};">
+<!-- Wrapper container que contiene todo -->
+<div 
+  bind:this={wrapperContainer}
+  class="map-generator-container" 
+  style="background-color: {backgroundColor}; width: {width}px; height: {height}px;"
+>
   <!-- Map Container -->
   <div
     bind:this={mapContainer}
     class="map-export-container"
-    style="width: {width}px; height: {height}px; background-color: {backgroundColor};"
+    style="width: 100%; height: 100%;"
   >
     {#if !map}
       <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
@@ -383,12 +386,12 @@
     </div>
   {/if}
 
-  <!-- Generation Status -->
+  <!-- Generation Status - Outside the capture area visually -->
   {#if isGenerating}
     <div class="generation-overlay">
-      <div style="display: flex; align-items: center; justify-content: center;">
+      <div style="display: flex; align-items: center; justify-content: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <div style="animation: spin 1s linear infinite; border-radius: 50%; height: 32px; width: 32px; border-bottom: 2px solid #2563eb; margin-right: 12px;"></div>
-        <span>Generando Imagen...</span>
+        <span style="color: #374151; font-weight: 500;">Generando Imagen...</span>
       </div>
     </div>
   {/if}
@@ -404,18 +407,22 @@
   }
 
   .map-export-container {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
 
   .metadata-overlay {
     position: absolute;
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     z-index: 1000;
     max-width: 280px;
+    pointer-events: none;
   }
 
   .metadata-overlay.top-left {
@@ -472,19 +479,11 @@
   }
 
   .generation-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    font-size: 16px;
-    font-weight: 500;
-    color: #374151;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3000;
   }
 
   :global(.start-marker-export),
@@ -504,6 +503,7 @@
     font-size: 12px;
     font-weight: 500;
     z-index: 1000;
+    pointer-events: none;
   }
 
   .branding-text {
