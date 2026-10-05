@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: /data/local.db
+      BODY_SIZE_LIMIT: "52428800" # 50MB, igual que MAX_FILE_SIZE
+      # Configúralo en Coolify cuando tengas tu dominio público
+      # ORIGIN: https://tu-dominio.example.com
+    volumes:
+      - app-data:/data
+    restart: unless-stopped
+
+volumes:
+  app-data:
