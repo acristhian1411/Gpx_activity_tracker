@@ -57,7 +57,6 @@
 	"dependencies": {
 		"better-sqlite3": "^12.4.1",
 		"gpxparser": "^3.0.8",
-		"html2canvas": "^1.4.1",
 		"leaflet": "^1.9.4"
 	}
 }
