@@ -3,7 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/Header.svelte';
 
-	let { children } = $props();
+	let { children, data } = $props();
 </script>
 
 <svelte:head>
@@ -11,7 +11,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50">
-	<Header />
+	<Header user={data.user} />
 	<main class="container mx-auto px-4 py-8">
 		{@render children?.()}
 	</main>
