@@ -10,6 +10,12 @@ services:
       BODY_SIZE_LIMIT: "52428800" # 50MB, igual que MAX_FILE_SIZE
       # Configúralo en Coolify cuando tengas tu dominio público
       # ORIGIN: https://tu-dominio.example.com
+      # Autenticación externa (Laravel Passport) — define estas variables en Coolify
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-https://auth.daemon-lab.duckdns.org}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:-}
+      AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:-}
+      AUTH_SCOPE: ${AUTH_SCOPE:-}
+      AUTH_USERINFO_CACHE_TTL_MS: ${AUTH_USERINFO_CACHE_TTL_MS:-30000}
     volumes:
       - app-data:/data
     restart: unless-stopped
