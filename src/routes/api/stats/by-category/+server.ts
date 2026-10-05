@@ -8,7 +8,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { StatsRepository } from '../../../../lib/server/repositories/index.js';
 import { ERROR_CODES } from '../../../../lib/types/index.js';
 import { initializeDatabase } from '../../../../lib/server/db/migrate.js';
-import { sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../../../lib/server/db/index.js';
 import { activities } from '../../../../lib/server/db/schema.js';
 
@@ -37,15 +37,18 @@ export interface CategoryStatsResponse {
  * GET /api/stats/by-category - Get statistics grouped by activity type
  * Returns stats only for categories that have data
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
   try {
+    const userId = locals.user!.id;
+
     // Ensure database is initialized
     await initializeDatabase();
     
     // First, get all activity types that have data
     const typesWithData = await db
       .selectDistinct({ type: activities.type })
-      .from(activities);
+      .from(activities)
+      .where(eq(activities.userId, userId));
 
     if (typesWithData.length === 0) {
       return json({
@@ -58,7 +61,7 @@ export const GET: RequestHandler = async () => {
     const categoryStats: CategoryStats[] = [];
     
     for (const { type } of typesWithData) {
-      const stats = await statsRepo.getStatsByType(type);
+      const stats = await statsRepo.getStatsByType(userId, type);
       
       // Only include if there are actually activities
       if (stats.totalActivities > 0) {

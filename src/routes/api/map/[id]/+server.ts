@@ -16,7 +16,7 @@ const gpsPointRepo = new GPSPointRepository();
  * GET /api/map/[id] - Get map data for activity
  * Returns GPS points and activity metadata for map rendering
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
     }
 
     // Check if activity exists
-    const activity = await activityRepo.findById(activityId);
+    const activity = await activityRepo.findById(activityId, locals.user!.id);
     if (!activity) {
       return json({
         success: false,

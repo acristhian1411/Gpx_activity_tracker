@@ -14,7 +14,7 @@ const activityRepo = new ActivityRepository();
 /**
  * GET /api/activities/[id] - Get specific activity
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params }) => {
       }, { status: 400 });
     }
 
-    const activity = await activityRepo.findById(activityId);
+    const activity = await activityRepo.findById(activityId, locals.user!.id);
     
     if (!activity) {
       return json<ActivityResponse>({
@@ -73,7 +73,7 @@ export const GET: RequestHandler = async ({ params }) => {
 /**
  * DELETE /api/activities/[id] - Delete specific activity
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -89,7 +89,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
     }
 
     // Check if activity exists
-    const activity = await activityRepo.findById(activityId);
+    const activity = await activityRepo.findById(activityId, locals.user!.id);
     if (!activity) {
       return json({
         success: false,
@@ -102,7 +102,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
     }
 
     // Delete the activity (this will cascade delete GPS points)
-    await activityRepo.delete(activityId);
+    await activityRepo.delete(activityId, locals.user!.id);
 
     return json({
       success: true,
@@ -137,7 +137,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 /**
  * PATCH /api/activities/[id] - Update specific activity
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -196,7 +196,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     }
 
     // Check if activity exists
-    const existingActivity = await activityRepo.findById(activityId);
+    const existingActivity = await activityRepo.findById(activityId, locals.user!.id);
     if (!existingActivity) {
       return json({
         success: false,
@@ -209,7 +209,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     }
 
     // Update the activity
-    const updatedActivity = await activityRepo.update(activityId, validUpdates);
+    const updatedActivity = await activityRepo.update(activityId, locals.user!.id, validUpdates);
 
     if (!updatedActivity) {
       return json({

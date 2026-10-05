@@ -44,8 +44,10 @@ interface MonthlyStatsResponse extends ApiResponse<{
  * GET /api/stats/monthly - Get monthly statistics and comparisons
  * Supports optional query parameters for customization
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   try {
+    const userId = locals.user!.id;
+
     // Parse query parameters
     const monthsParam = url.searchParams.get('months');
     const months = monthsParam ? parseInt(monthsParam) : 12;
@@ -63,7 +65,7 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     // Get monthly data for the specified number of months
-    const monthlyData = await statsRepo.getActivityCountByMonth(months);
+    const monthlyData = await statsRepo.getActivityCountByMonth(userId, months);
 
     // Get current and previous month stats for comparison
     const currentDate = new Date();
@@ -71,8 +73,8 @@ export const GET: RequestHandler = async ({ url }) => {
     const previousMonth = formatMonth(getPreviousMonth(currentDate));
 
     const [currentMonthStats, previousMonthStats] = await Promise.all([
-      statsRepo.getMonthlyStats(currentMonth),
-      statsRepo.getMonthlyStats(previousMonth)
+      statsRepo.getMonthlyStats(userId, currentMonth),
+      statsRepo.getMonthlyStats(userId, previousMonth)
     ]);
 
     // Calculate comparison metrics

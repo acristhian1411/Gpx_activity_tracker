@@ -11,7 +11,7 @@ export class StatsRepository {
 	/**
 	 * Get comprehensive activity statistics
 	 */
-	async getActivityStats(): Promise<ActivityStats> {
+	async getActivityStats(userId: number): Promise<ActivityStats> {
 		try {
 			const currentDate = new Date();
 			const currentMonth = this.formatMonth(currentDate);
@@ -24,11 +24,11 @@ export class StatsRepository {
 				currentMonthStats,
 				previousMonthStats
 			] = await Promise.all([
-				this.getTotalStats(),
-				this.getLongestDistanceActivity(),
-				this.getLongestDurationActivity(),
-				this.getMonthlyStats(currentMonth),
-				this.getMonthlyStats(previousMonth)
+				this.getTotalStats(userId),
+				this.getLongestDistanceActivity(userId),
+				this.getLongestDurationActivity(userId),
+				this.getMonthlyStats(userId, currentMonth),
+				this.getMonthlyStats(userId, previousMonth)
 			]);
 
 			return {
@@ -48,7 +48,7 @@ export class StatsRepository {
 	/**
 	 * Get total statistics across all activities
 	 */
-	async getTotalStats(): Promise<{
+	async getTotalStats(userId: number): Promise<{
 		totalActivities: number;
 		totalDistance: number;
 		totalDuration: number;
@@ -60,7 +60,8 @@ export class StatsRepository {
 					totalDistance: sql<number>`COALESCE(SUM(${activities.distance}), 0)`,
 					totalDuration: sql<number>`COALESCE(SUM(${activities.duration}), 0)`
 				})
-				.from(activities);
+				.from(activities)
+				.where(eq(activities.userId, userId));
 
 			return {
 				totalActivities: result.totalActivities,
@@ -75,7 +76,7 @@ export class StatsRepository {
 	/**
 	 * Get monthly statistics for a specific month
 	 */
-	async getMonthlyStats(month: string): Promise<MonthlyStats> {
+	async getMonthlyStats(userId: number, month: string): Promise<MonthlyStats> {
 		try {
 			const startOfMonth = `${month}-01`;
 			const endOfMonth = this.getEndOfMonth(month);
@@ -89,6 +90,7 @@ export class StatsRepository {
 				.from(activities)
 				.where(
 					and(
+						eq(activities.userId, userId),
 						gte(activities.startTime, startOfMonth),
 						lte(activities.startTime, endOfMonth)
 					)
@@ -108,11 +110,12 @@ export class StatsRepository {
 	/**
 	 * Get activity with longest distance
 	 */
-	async getLongestDistanceActivity(): Promise<Activity | undefined> {
+	async getLongestDistanceActivity(userId: number): Promise<Activity | undefined> {
 		try {
 			const [activity] = await db
 				.select()
 				.from(activities)
+				.where(eq(activities.userId, userId))
 				.orderBy(sql`${activities.distance} DESC`)
 				.limit(1);
 
@@ -125,11 +128,12 @@ export class StatsRepository {
 	/**
 	 * Get activity with longest duration
 	 */
-	async getLongestDurationActivity(): Promise<Activity | undefined> {
+	async getLongestDurationActivity(userId: number): Promise<Activity | undefined> {
 		try {
 			const [activity] = await db
 				.select()
 				.from(activities)
+				.where(eq(activities.userId, userId))
 				.orderBy(sql`${activities.duration} DESC`)
 				.limit(1);
 
@@ -142,7 +146,10 @@ export class StatsRepository {
 	/**
 	 * Get statistics by activity type
 	 */
-	async getStatsByType(type: string): Promise<{
+	async getStatsByType(
+		userId: number,
+		type: string
+	): Promise<{
 		totalActivities: number;
 		totalDistance: number;
 		totalDuration: number;
@@ -159,7 +166,7 @@ export class StatsRepository {
 					averageDuration: sql<number>`COALESCE(AVG(${activities.duration}), 0)`
 				})
 				.from(activities)
-				.where(eq(activities.type, type));
+				.where(and(eq(activities.userId, userId), eq(activities.type, type)));
 
 			return {
 				totalActivities: result.totalActivities,
@@ -176,7 +183,11 @@ export class StatsRepository {
 	/**
 	 * Get statistics for a date range
 	 */
-	async getStatsForDateRange(startDate: string, endDate: string): Promise<{
+	async getStatsForDateRange(
+		userId: number,
+		startDate: string,
+		endDate: string
+	): Promise<{
 		totalActivities: number;
 		totalDistance: number;
 		totalDuration: number;
@@ -195,6 +206,7 @@ export class StatsRepository {
 				.from(activities)
 				.where(
 					and(
+						eq(activities.userId, userId),
 						gte(activities.startTime, startDate),
 						lte(activities.startTime, endDate)
 					)
@@ -215,7 +227,10 @@ export class StatsRepository {
 	/**
 	 * Get recent activities summary (last N activities)
 	 */
-	async getRecentActivitiesSummary(limit: number = 10): Promise<{
+	async getRecentActivitiesSummary(
+		userId: number,
+		limit: number = 10
+	): Promise<{
 		activities: Activity[];
 		totalDistance: number;
 		totalDuration: number;
@@ -226,11 +241,18 @@ export class StatsRepository {
 			const recentActivities = await db
 				.select()
 				.from(activities)
+				.where(eq(activities.userId, userId))
 				.orderBy(sql`${activities.startTime} DESC`)
 				.limit(limit);
 
-			const totalDistance = recentActivities.reduce((sum: number, activity: Activity) => sum + activity.distance, 0);
-			const totalDuration = recentActivities.reduce((sum: number, activity: Activity) => sum + activity.duration, 0);
+			const totalDistance = recentActivities.reduce(
+				(sum: number, activity: Activity) => sum + activity.distance,
+				0
+			);
+			const totalDuration = recentActivities.reduce(
+				(sum: number, activity: Activity) => sum + activity.duration,
+				0
+			);
 			const count = recentActivities.length;
 
 			return {
@@ -248,12 +270,17 @@ export class StatsRepository {
 	/**
 	 * Get activity count by month for the last N months
 	 */
-	async getActivityCountByMonth(months: number = 12): Promise<Array<{
-		month: string;
-		count: number;
-		distance: number;
-		duration: number;
-	}>> {
+	async getActivityCountByMonth(
+		userId: number,
+		months: number = 12
+	): Promise<
+		Array<{
+			month: string;
+			count: number;
+			distance: number;
+			duration: number;
+		}>
+	> {
 		try {
 			const results: Array<{
 				month: string;
@@ -263,12 +290,12 @@ export class StatsRepository {
 			}> = [];
 
 			const currentDate = new Date();
-			
+
 			for (let i = 0; i < months; i++) {
 				const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
 				const month = this.formatMonth(targetDate);
-				const monthStats = await this.getMonthlyStats(month);
-				
+				const monthStats = await this.getMonthlyStats(userId, month);
+
 				results.push({
 					month,
 					count: monthStats.activities,
@@ -286,7 +313,7 @@ export class StatsRepository {
 	/**
 	 * Get personal records (fastest speeds, longest distances, etc.)
 	 */
-	async getPersonalRecords(): Promise<{
+	async getPersonalRecords(userId: number): Promise<{
 		fastestAverageSpeed?: Activity;
 		fastestMaxSpeed?: Activity;
 		longestDistance?: Activity;
@@ -301,11 +328,36 @@ export class StatsRepository {
 				longestDuration,
 				highestElevationGain
 			] = await Promise.all([
-				db.select().from(activities).orderBy(sql`${activities.averageSpeed} DESC`).limit(1),
-				db.select().from(activities).orderBy(sql`${activities.maxSpeed} DESC`).limit(1),
-				db.select().from(activities).orderBy(sql`${activities.distance} DESC`).limit(1),
-				db.select().from(activities).orderBy(sql`${activities.duration} DESC`).limit(1),
-				db.select().from(activities).orderBy(sql`${activities.elevationGain} DESC`).limit(1)
+				db
+					.select()
+					.from(activities)
+					.where(eq(activities.userId, userId))
+					.orderBy(sql`${activities.averageSpeed} DESC`)
+					.limit(1),
+				db
+					.select()
+					.from(activities)
+					.where(eq(activities.userId, userId))
+					.orderBy(sql`${activities.maxSpeed} DESC`)
+					.limit(1),
+				db
+					.select()
+					.from(activities)
+					.where(eq(activities.userId, userId))
+					.orderBy(sql`${activities.distance} DESC`)
+					.limit(1),
+				db
+					.select()
+					.from(activities)
+					.where(eq(activities.userId, userId))
+					.orderBy(sql`${activities.duration} DESC`)
+					.limit(1),
+				db
+					.select()
+					.from(activities)
+					.where(eq(activities.userId, userId))
+					.orderBy(sql`${activities.elevationGain} DESC`)
+					.limit(1)
 			]);
 
 			return {

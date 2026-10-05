@@ -16,8 +16,10 @@ const activityRepo = new ActivityRepository();
  * Returns activities ordered by start time (newest first)
  * Supports optional pagination parameters
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   try {
+    const userId = locals.user!.id;
+
     // Parse query parameters for pagination
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '50');
@@ -36,8 +38,8 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     // Get activities with pagination
-    const activities = await activityRepo.findAll(limit, offset);
-    const totalCount = await activityRepo.count();
+    const activities = await activityRepo.findAll(userId, limit, offset);
+    const totalCount = await activityRepo.count(userId);
     const totalPages = Math.ceil(totalCount / limit);
 
     // Convert database dates to frontend Date objects
@@ -81,7 +83,7 @@ export const GET: RequestHandler = async ({ url }) => {
  * Note: This is primarily for manual activity creation
  * GPX uploads should use /api/upload endpoint
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const body: ActivityCreateRequest = await request.json();
 
@@ -99,6 +101,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // For manual activity creation, we need minimum required fields
     const activityData = {
+      userId: locals.user!.id,
       name: body.name.trim(),
       type: body.type || 'unknown',
       startTime: new Date().toISOString(),

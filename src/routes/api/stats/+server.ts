@@ -16,12 +16,12 @@ const statsRepo = new StatsRepository();
  * GET /api/stats - Get comprehensive dashboard statistics
  * Returns total stats, personal records, and monthly comparisons
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
   try {
     // Ensure database is initialized
     await initializeDatabase();
     
-    const stats = await statsRepo.getActivityStats();
+    const stats = await statsRepo.getActivityStats(locals.user!.id);
 
     // Convert database dates to frontend Date objects for activities
     const statsForFrontend = {

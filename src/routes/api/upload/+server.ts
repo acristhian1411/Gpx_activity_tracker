@@ -11,7 +11,7 @@ import { GPXActivityError, ERROR_CODES } from '$lib/types';
 import type { UploadResponse } from '$lib/types';
 import { initializeDatabase } from '$lib/server/db/migrate.js';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     // Ensure database is initialized
     await initializeDatabase();
@@ -57,7 +57,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Activity data is already in the correct format (strings) from GPXParserService
     const activityForDb = {
-      ...parsedData.activity
+      ...parsedData.activity,
+      userId: locals.user!.id
     };
 
     // Create activity
@@ -79,7 +80,7 @@ export const POST: RequestHandler = async ({ request }) => {
       
       // If GPS point creation fails, we should clean up the activity
       try {
-        await activityRepo.delete(createdActivity.id);
+        await activityRepo.delete(createdActivity.id, locals.user!.id);
         console.log(`Cleaned up activity ${createdActivity.id} after GPS point creation failure`);
       } catch (cleanupError) {
         console.error(`Failed to clean up activity ${createdActivity.id}:`, cleanupError);

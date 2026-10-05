@@ -1,4 +1,4 @@
-import { eq, desc, asc, and, gte, lte, count } from 'drizzle-orm';
+import { eq, desc, asc, and, gte, lte, count, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { activities, gpsPoints } from '../db/schema.js';
 import type { Activity, NewActivity, ActivityWithGPSPoints } from '../db/types.js';
@@ -28,14 +28,14 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get activity by ID
+	 * Get activity by ID (scoped to a user)
 	 */
-	async findById(id: number): Promise<Activity | null> {
+	async findById(id: number, userId: number): Promise<Activity | null> {
 		try {
 			const [activity] = await db
 				.select()
 				.from(activities)
-				.where(eq(activities.id, id))
+				.where(and(eq(activities.id, id), eq(activities.userId, userId)))
 				.limit(1);
 
 			return activity || null;
@@ -45,11 +45,11 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get activity by ID with GPS points
+	 * Get activity by ID with GPS points (scoped to a user)
 	 */
-	async findByIdWithGPSPoints(id: number): Promise<ActivityWithGPSPoints | null> {
+	async findByIdWithGPSPoints(id: number, userId: number): Promise<ActivityWithGPSPoints | null> {
 		try {
-			const activity = await this.findById(id);
+			const activity = await this.findById(id, userId);
 			if (!activity) return null;
 
 			const points = await db
@@ -68,13 +68,14 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get all activities ordered by start time (newest first)
+	 * Get all activities for a user ordered by start time (newest first)
 	 */
-	async findAll(limit?: number, offset?: number): Promise<Activity[]> {
+	async findAll(userId: number, limit?: number, offset?: number): Promise<Activity[]> {
 		try {
 			const query = db
 				.select()
 				.from(activities)
+				.where(eq(activities.userId, userId))
 				.orderBy(desc(activities.startTime));
 
 			if (limit !== undefined && offset !== undefined) {
@@ -92,15 +93,16 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get activities within a date range
+	 * Get activities within a date range (scoped to a user)
 	 */
-	async findByDateRange(startDate: string, endDate: string): Promise<Activity[]> {
+	async findByDateRange(userId: number, startDate: string, endDate: string): Promise<Activity[]> {
 		try {
 			return await db
 				.select()
 				.from(activities)
 				.where(
 					and(
+						eq(activities.userId, userId),
 						gte(activities.startTime, startDate),
 						lte(activities.startTime, endDate)
 					)
@@ -112,14 +114,14 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get activities by type
+	 * Get activities by type (scoped to a user)
 	 */
-	async findByType(type: string): Promise<Activity[]> {
+	async findByType(userId: number, type: string): Promise<Activity[]> {
 		try {
 			return await db
 				.select()
 				.from(activities)
-				.where(eq(activities.type, type))
+				.where(and(eq(activities.userId, userId), eq(activities.type, type)))
 				.orderBy(desc(activities.startTime));
 		} catch (error) {
 			throw new Error(`Failed to find activities by type: ${error}`);
@@ -127,9 +129,13 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Update an activity
+	 * Update an activity (scoped to a user)
 	 */
-	async update(id: number, updates: Partial<NewActivity>): Promise<Activity | null> {
+	async update(
+		id: number,
+		userId: number,
+		updates: Partial<NewActivity>
+	): Promise<Activity | null> {
 		try {
 			const [updatedActivity] = await db
 				.update(activities)
@@ -137,7 +143,7 @@ export class ActivityRepository {
 					...updates,
 					updatedAt: new Date().toISOString()
 				})
-				.where(eq(activities.id, id))
+				.where(and(eq(activities.id, id), eq(activities.userId, userId)))
 				.returning();
 
 			return updatedActivity || null;
@@ -147,13 +153,13 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Delete an activity (will cascade delete GPS points)
+	 * Delete an activity (scoped to a user; will cascade delete GPS points)
 	 */
-	async delete(id: number): Promise<boolean> {
+	async delete(id: number, userId: number): Promise<boolean> {
 		try {
 			const result = await db
 				.delete(activities)
-				.where(eq(activities.id, id));
+				.where(and(eq(activities.id, id), eq(activities.userId, userId)));
 
 			return result.changes > 0;
 		} catch (error) {
@@ -162,13 +168,14 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Get total count of activities
+	 * Get total count of activities (scoped to a user)
 	 */
-	async count(): Promise<number> {
+	async count(userId: number): Promise<number> {
 		try {
 			const [result] = await db
 				.select({ count: count() })
-				.from(activities);
+				.from(activities)
+				.where(eq(activities.userId, userId));
 
 			return result.count;
 		} catch (error) {
@@ -177,14 +184,28 @@ export class ActivityRepository {
 	}
 
 	/**
-	 * Check if activity exists
+	 * Check if activity exists (scoped to a user)
 	 */
-	async exists(id: number): Promise<boolean> {
+	async exists(id: number, userId: number): Promise<boolean> {
 		try {
-			const activity = await this.findById(id);
+			const activity = await this.findById(id, userId);
 			return activity !== null;
 		} catch (error) {
 			throw new Error(`Failed to check if activity exists: ${error}`);
+		}
+	}
+
+	/**
+	 * Assign activities without an owner (pre-auth data) to the given user.
+	 * Used as a one-time backfill for the first user that logs in.
+	 */
+	async assignOrphansToUser(userId: number): Promise<number> {
+		try {
+			const result = await db.update(activities).set({ userId }).where(isNull(activities.userId));
+
+			return result.changes;
+		} catch (error) {
+			throw new Error(`Failed to assign orphan activities to user: ${error}`);
 		}
 	}
 }

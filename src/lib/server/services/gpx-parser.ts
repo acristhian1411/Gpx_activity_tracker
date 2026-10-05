@@ -9,7 +9,7 @@ import type { Activity, GPSPoint, ActivityType } from '../db/types.js';
 import { GPXActivityError, ERROR_CODES } from '../../types/errors.js';
 
 export interface ParsedGPXData {
-  activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
+  activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt' | 'userId'>;
   gpsPoints: Omit<GPSPoint, 'id' | 'activityId'>[];
 }
 
@@ -152,7 +152,7 @@ export class GPXParserService {
       // Generate activity name using the new format
       const activityName = this.generateActivityName(gpx, filename, activityType, new Date(metrics.startTime));
 
-      const activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'> = {
+      const activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt' | 'userId'> = {
         name: activityName,
         type: activityType,
         startTime: metrics.startTime,

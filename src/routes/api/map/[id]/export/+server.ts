@@ -15,7 +15,7 @@ const gpsPointRepo = new GPSPointRepository();
  * POST /api/map/[id]/export - Export map as image
  * Generates a shareable map image for the specified activity
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
     }
 
     // Check if activity exists
-    const activity = await activityRepo.findById(activityId);
+    const activity = await activityRepo.findById(activityId, locals.user!.id);
     if (!activity) {
       return json({
         success: false,
@@ -136,7 +136,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
  * GET /api/map/[id]/export - Get export configuration
  * Returns the configuration needed for client-side map generation
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, locals }) => {
   try {
     const activityId = parseInt(params.id);
     
@@ -152,7 +152,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
     }
 
     // Check if activity exists
-    const activity = await activityRepo.findById(activityId);
+    const activity = await activityRepo.findById(activityId, locals.user!.id);
     if (!activity) {
       return json({
         success: false,
