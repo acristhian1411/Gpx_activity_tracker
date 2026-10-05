@@ -14,10 +14,22 @@ export async function runMigrations(): Promise<void> {
 	try {
 		console.log('Running database migrations...');
 		
+		// Create users table
+		client.exec(`
+			CREATE TABLE IF NOT EXISTS users (
+				id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+				email TEXT NOT NULL UNIQUE,
+				name TEXT,
+				external_id TEXT,
+				created_at TEXT DEFAULT CURRENT_TIMESTAMP
+			);
+		`);
+		
 		// Create activities table
 		client.exec(`
 			CREATE TABLE IF NOT EXISTS activities (
 				id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+				user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
 				name TEXT NOT NULL,
 				type TEXT DEFAULT 'unknown' NOT NULL,
 				start_time TEXT NOT NULL,
@@ -32,9 +44,23 @@ export async function runMigrations(): Promise<void> {
 			);
 		`);
 		
+		// Add user_id column to existing activities table if missing
+		const activityColumns = client.prepare(`PRAGMA table_info(activities)`).all() as Array<{ name: string }>;
+		if (!activityColumns.some((column) => column.name === 'user_id')) {
+			console.log('Adding user_id column to activities table...');
+			client.exec(`
+				ALTER TABLE activities ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+			`);
+		}
+		
 		// Create index for activities start_time
 		client.exec(`
 			CREATE INDEX IF NOT EXISTS idx_activities_start_time ON activities (start_time);
+		`);
+		
+		// Create index for activities user_id
+		client.exec(`
+			CREATE INDEX IF NOT EXISTS idx_activities_user_id ON activities (user_id);
 		`);
 		
 		// Create gps_points table
@@ -77,10 +103,10 @@ export async function checkTablesExist(): Promise<boolean> {
 	try {
 		const result = client.prepare(`
 			SELECT name FROM sqlite_master 
-			WHERE type='table' AND name IN ('activities', 'gps_points')
+			WHERE type='table' AND name IN ('activities', 'gps_points', 'users')
 		`).all();
 		
-		return result.length === 2;
+		return result.length === 3;
 	} catch (error) {
 		console.error('Error checking tables:', error);
 		return false;
@@ -89,14 +115,9 @@ export async function checkTablesExist(): Promise<boolean> {
 
 /**
  * Initialize database if needed
+ * Migrations are idempotent (CREATE IF NOT EXISTS + column-existence checks),
+ * so they always run to ensure the schema is up to date.
  */
 export async function initializeDatabase(): Promise<void> {
-	const tablesExist = await checkTablesExist();
-	
-	if (!tablesExist) {
-		console.log('Tables do not exist, running migrations...');
-		await runMigrations();
-	} else {
-		console.log('Database tables already exist');
-	}
+	await runMigrations();
 }

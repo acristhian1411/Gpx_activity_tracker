@@ -1,10 +1,19 @@
 import { integer, sqliteTable, text, real, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+export const users = sqliteTable('users', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	email: text('email').notNull().unique(),
+	name: text('name'),
+	externalId: text('external_id'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const activities = sqliteTable(
 	'activities',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		type: text('type').notNull().default('unknown'),
 		startTime: text('start_time').notNull(),

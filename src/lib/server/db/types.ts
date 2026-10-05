@@ -1,5 +1,9 @@
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
-import type { activities, gpsPoints } from './schema.js';
+import type { activities, gpsPoints, users } from './schema.js';
+
+// User types
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
 
 // Activity types
 export type Activity = InferSelectModel<typeof activities>;
